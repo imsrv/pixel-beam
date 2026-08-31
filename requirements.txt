@@ -1,0 +1,8 @@
+flask
+pillow
+piexif
+gunicorn
+numpy
+opencv-python
+scipy
+

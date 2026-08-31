@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PixelBeam — Image Sanitizer & EXIF Injector</title>
+  <meta name="description" content="PixelBeam strips micro-steganography from images via pixel diffusion and injects custom EXIF metadata with interactive GPS mapping. Zero API keys required." />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+  <div class="page-wrapper">
+
+    <!-- ── HEADER ─────────────────────────────── -->
+    <header>
+      <div class="logo-row">
+        <div class="logo-icon"><i data-lucide="zap"></i></div>
+        <h1>PixelBeam</h1>
+      </div>
+      <p class="tagline">Strip micro-steganography, inject custom EXIF metadata, and pin precise GPS coordinates — all in-memory, zero data stored.</p>
+      <div class="badges">
+        <span class="badge accent"><i data-lucide="shield-check" style="width:12px; height:12px; vertical-align:middle; margin-right:3px;"></i> Zero Disk Writes</span>
+        <span class="badge"><i data-lucide="map-pin" style="width:12px; height:12px; vertical-align:middle; margin-right:3px;"></i> Leaflet + OpenStreetMap</span>
+        <span class="badge"><i data-lucide="key-round" style="width:12px; height:12px; vertical-align:middle; margin-right:3px;"></i> No API Keys</span>
+        <span class="badge"><i data-lucide="image" style="width:12px; height:12px; vertical-align:middle; margin-right:3px;"></i> JPEG / PNG</span>
+      </div>
+    </header>
+
+    <!-- ── PIPELINE VIZ ───────────────────────── -->
+    <div class="card" style="padding: 16px 20px;">
+      <div class="pipeline">
+        <div class="pipe-step" id="pipe-upload">
+          <div class="pipe-icon"><i data-lucide="upload-cloud"></i></div>
+          <span class="pipe-label">Upload</span>
+        </div>
+        <div class="pipe-arrow">›</div>
+        <div class="pipe-step" id="pipe-sanitize">
+          <div class="pipe-icon"><i data-lucide="sparkles"></i></div>
+          <span class="pipe-label">Sanitize</span>
+        </div>
+        <div class="pipe-arrow">›</div>
+        <div class="pipe-step" id="pipe-exif">
+          <div class="pipe-icon"><i data-lucide="tag"></i></div>
+          <span class="pipe-label">EXIF Inject</span>
+        </div>
+        <div class="pipe-arrow">›</div>
+        <div class="pipe-step" id="pipe-gps">
+          <div class="pipe-icon"><i data-lucide="map-pin"></i></div>
+          <span class="pipe-label">GPS Tag</span>
+        </div>
+        <div class="pipe-arrow">›</div>
+        <div class="pipe-step" id="pipe-download">
+          <div class="pipe-icon"><i data-lucide="download"></i></div>
+          <span class="pipe-label">Download</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── STEP 1: UPLOAD ─────────────────────── -->
+    <div class="card">
+      <div class="card-title">
+        <span class="step-num">1</span> Upload Image
+      </div>
+
+      <div id="drop-zone" role="button" tabindex="0" aria-label="Upload image drag and drop zone">
+        <span class="drop-icon"><i data-lucide="image-plus" style="width:40px; height:40px;"></i></span>
+        <div class="drop-label">Drop your image here</div>
+        <div class="drop-sub">JPEG or PNG · <span id="browse-link">Browse files</span></div>
+        <input type="file" id="file-input" accept="image/jpeg,image/png" aria-label="File upload input" />
+      </div>
+
+      <div id="file-preview">
+        <img id="preview-thumb" alt="Preview thumbnail" />
+        <div class="preview-info">
+          <div class="preview-name" id="preview-name">—</div>
+          <div class="preview-size" id="preview-size">—</div>
+        </div>
+        <button class="remove-btn" id="remove-file-btn" aria-label="Remove selected file">Remove</button>
+      </div>
+    </div>
+
+    <!-- ── STEP 2: EXIF METADATA ──────────────── -->
+    <div class="card">
+      <div class="card-title">
+        <span class="step-num">2</span> EXIF Metadata
+        <span style="margin-left:auto; font-size:11px; font-weight:400; color:var(--text-muted); text-transform:none; letter-spacing:0;">All fields optional</span>
+      </div>
+
+      <div class="fields-grid">
+        <!-- Device Make -->
+        <div class="field-group">
+          <label for="exif-make-select">Device Make</label>
+          <div class="select-wrap">
+            <select class="styled-select" id="exif-make-select" aria-label="Device make">
+              <option value="" disabled selected>— Select Brand —</option>
+              <option value="Apple">Apple</option>
+              <option value="samsung">Samsung</option>
+              <option value="Google">Google</option>
+              <option value="OnePlus">OnePlus</option>
+              <option value="SONY">Sony (Cameras)</option>
+              <option value="Canon">Canon</option>
+              <option value="__custom__">Custom…</option>
+            </select>
+          </div>
+          <div class="custom-input-row" id="make-custom-row">
+            <input type="text" id="exif-make-custom" placeholder="Type brand name…" maxlength="64" />
+          </div>
+        </div>
+
+        <!-- Device Model -->
+        <div class="field-group">
+          <label for="exif-model-select">Device Model</label>
+          <div class="select-wrap">
+            <select class="styled-select" id="exif-model-select" aria-label="Device model" disabled>
+              <option value="" disabled selected>— Select Make first —</option>
+            </select>
+          </div>
+          <div class="custom-input-row" id="model-custom-row">
+            <input type="text" id="exif-model-custom" placeholder="Type model name…" maxlength="64" />
+          </div>
+        </div>
+
+        <div class="field-group full">
+          <label for="exif-datetime">Date &amp; Time</label>
+          <input type="datetime-local" id="exif-datetime" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ── STEP 3: GPS MAP ────────────────────── -->
+    <div class="card">
+      <div class="card-title">
+        <span class="step-num">3</span> GPS Location
+        <span style="margin-left:auto; font-size:11px; font-weight:400; color:var(--text-muted); text-transform:none; letter-spacing:0;">Optional — click map to pin</span>
+      </div>
+
+      <div id="map-container">
+        <div class="map-hint" id="map-hint"><i data-lucide="mouse-pointer-click" style="width:14px; height:14px; vertical-align:middle; margin-right:4px;"></i> Click anywhere on the map to set GPS coordinates</div>
+        <div id="map" aria-label="GPS location selector map"></div>
+      </div>
+
+      <div class="coord-display" style="margin-top: 12px;">
+        <div class="coord-pill" id="lat-pill">Lat: —</div>
+        <div class="coord-pill" id="lng-pill">Lng: —</div>
+        <button class="remove-btn" id="clear-pin-btn" aria-label="Clear GPS pin" style="display:none;">Clear Pin</button>
+      </div>
+
+      <!-- Hidden inputs carried to form submission -->
+      <input type="hidden" id="lat-val" />
+      <input type="hidden" id="lng-val" />
+    </div>
+
+    <!-- ── STEP 4: PROCESS ────────────────────── -->
+    <div class="card">
+      <div class="card-title">
+        <span class="step-num">4</span> Process &amp; Download
+      </div>
+
+      <button id="process-btn" disabled aria-label="Process image button">
+        <i data-lucide="zap" style="width:16px; height:16px; vertical-align:middle; margin-right:6px;"></i> Sanitize &amp; Inject EXIF
+      </button>
+
+      <div id="status-bar" role="status" aria-live="polite">
+        <div class="spinner" id="status-spinner" style="display:none;"></div>
+        <span id="status-msg"></span>
+      </div>
+    </div>
+
+    <!-- ── DOWNLOAD RESULT ────────────────────── -->
+    <div class="card" id="download-section">
+      <div class="card-title">
+        <span class="step-num"><i data-lucide="check" style="width:14px; height:14px;"></i></span> Ready to Download
+      </div>
+      <div class="download-inner">
+        <img id="result-preview" alt="Processed image preview" />
+        <div class="download-info">
+          <div class="download-title">Image Processed Successfully</div>
+          <div class="download-sub">Pixel sanitization applied · EXIF injected · Steganography disrupted</div>
+          <div class="exif-tags" id="exif-tags-display"></div>
+        </div>
+        <a id="download-btn" href="#" download="pixelbeam_processed.jpg" aria-label="Download processed image">
+          <i data-lucide="download" style="width:16px; height:16px; vertical-align:middle; margin-right:6px;"></i> Download
+        </a>
+      </div>
+    </div>
+
+    <!-- ── FOOTER ─────────────────────────────── -->
+    <footer>
+      <p><strong>PixelBeam</strong> · Built with Flask + Pillow + Leaflet.js · Zero external API keys · All processing in-memory</p>
+    </footer>
+
+  </div><!-- .page-wrapper -->
+
+  <!-- App Logic -->
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
